@@ -1,0 +1,85 @@
+# Pre-commit configuration for sparki-tools/common-go-lib
+# See: platform/.github/dev-tools/hooks/go-pre-commit.yaml for template
+#
+# Install: pre-commit install && pre-commit install --hook-type commit-msg
+# Run: pre-commit run --all-files
+
+repos:
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Secret detection
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.1
+    hooks:
+      - id: gitleaks
+
+  # Go-specific hooks
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-imports
+        args: [-w]
+      - id: go-vet
+      - id: go-mod-tidy
+
+  # golangci-lint
+  - repo: https://github.com/golangci/golangci-lint
+    rev: v1.56.2
+    hooks:
+      - id: golangci-lint
+        args: [--timeout=5m]
+
+  # Commit signing verification
+  - repo: local
+    hooks:
+      - id: verify-commit-signing
+        name: Verify GPG/SSH commit signing is configured
+        entry: |
+          bash -c '
+            key=$(git config --get user.signingkey 2>/dev/null || echo "")
+            sign=$(git config --get commit.gpgsign 2>/dev/null || echo "false")
+            if [ -z "$key" ] || [ "$sign" != "true" ]; then
+              echo "ERROR: Commit signing not configured. See README.md"
+              exit 1
+            fi
+          '
+        language: system
+        stages: [pre-commit]
+        always_run: true
+        pass_filenames: false
+
+  # Conventional commits
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.1.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - docs
+          - style
+          - refactor
+          - perf
+          - test
+          - build
+          - ci
+          - chore
+          - revert

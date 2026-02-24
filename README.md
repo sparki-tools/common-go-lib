@@ -168,9 +168,9 @@ This library follows semantic versioning. See [CHANGELOG.md](CHANGELOG.md) for r
 
 ## Related Repositories
 
-- [engine](https://github.com/sparki-tools/engine) - Main backend service
+- [api-engine](https://github.com/sparki-tools/api-engine) - Main backend service
 - [api-contracts](https://github.com/sparki-tools/api-contracts) - API specifications
-- [storm](https://github.com/sparki-tools/storm) - Observability platform
+- [observability-storm](https://github.com/sparki-tools/observability-storm) - Observability platform
 
 ## License
 

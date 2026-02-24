@@ -1,0 +1,17 @@
+# CODEOWNERS for Common Go Library
+
+* @sparki-tools/backend-team
+
+# Public API requires extra scrutiny
+/pkg/ @sparki-tools/backend-team @sparki-tools/api-team
+
+# CI/CD
+/.github/ @sparki-tools/backend-team @sparki-tools/platform-team
+
+# Configuration
+.golangci.yml @sparki-tools/backend-team
+.pre-commit-config.yaml @sparki-tools/backend-team @sparki-tools/platform-team
+renovate.json @sparki-tools/backend-team @sparki-tools/platform-team
+
+# Documentation
+*.md @sparki-tools/backend-team

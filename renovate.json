@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Sparki Go Library - Renovate Configuration",
+  "extends": [
+    "local>sparki-tools/platform//.github/renovate-config.json"
+  ],
+  "enabledManagers": ["gomod", "github-actions"],
+  "go": {
+    "enabled": true,
+    "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"]
+  },
+  "packageRules": [
+    {
+      "description": "Group all Go direct dependencies",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["direct"],
+      "groupName": "go-dependencies"
+    },
+    {
+      "description": "Group all Go indirect dependencies",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["indirect"],
+      "groupName": "go-indirect",
+      "automerge": true
+    },
+    {
+      "description": "Require approval for major updates (library consumers may break)",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "labels": ["breaking-change"]
+    }
+  ]
+}

@@ -33,8 +33,8 @@ type Framework struct {
 type ObservabilityConfig struct {
 	// Metrics
 	MetricsEnabled bool
-	MetricsPort   int
-	MetricsPath   string
+	MetricsPort    int
+	MetricsPath    string
 
 	// Tracing
 	TracingEnabled  bool
@@ -47,7 +47,7 @@ type ObservabilityConfig struct {
 
 	// Profiling
 	ProfilingEnabled bool
-	ProfilingPort   int
+	ProfilingPort    int
 
 	// General
 	ServiceName string
@@ -76,11 +76,14 @@ type MetricsCollector struct {
 }
 
 // TracingCollector handles distributed tracing
+// Supports both legacy in-memory tracing and OpenTelemetry integration
 type TracingCollector struct {
-	spans         map[string]*SpanContext
-	mu            sync.RWMutex
-	samplingRate  float64
-	enabled       bool
+	spans        map[string]*SpanContext
+	mu           sync.RWMutex
+	samplingRate float64
+	enabled      bool
+	// OTEL integration (Block 14)
+	otelProvider *TracerProvider
 }
 
 // SpanContext represents active span
@@ -96,19 +99,19 @@ type SpanContext struct {
 
 // ProfilerCollector handles performance profiling
 type ProfilerCollector struct {
-	enabled      bool
-	samples      map[string]*ProfileSample
-	mu           sync.RWMutex
-	sampleRate   float64
+	enabled    bool
+	samples    map[string]*ProfileSample
+	mu         sync.RWMutex
+	sampleRate float64
 }
 
 // ProfileSample represents profiling data point
 type ProfileSample struct {
-	Function    string
-	Duration    time.Duration
-	CallCount   int
-	Errors      int
-	Memory      int64
+	Function  string
+	Duration  time.Duration
+	CallCount int
+	Errors    int
+	Memory    int64
 }
 
 // NewFramework creates a new observability framework
@@ -190,12 +193,12 @@ func NewFramework(config *ObservabilityConfig) (*Framework, error) {
 	}
 
 	framework := &Framework{
-		logger:    logger,
-		metrics:   metrics,
-		tracing:   tracing,
-		profiler:  profiler,
-		config:    config,
-		enabled:   true,
+		logger:   logger,
+		metrics:  metrics,
+		tracing:  tracing,
+		profiler: profiler,
+		config:   config,
+		enabled:  true,
 	}
 
 	logger.Info("observability framework initialized",
@@ -379,10 +382,10 @@ func (f *Framework) GetMetrics() map[string]interface{} {
 	defer f.metrics.mu.RUnlock()
 
 	return map[string]interface{}{
-		"metrics_enabled": f.config.MetricsEnabled,
-		"tracing_enabled": f.config.TracingEnabled,
+		"metrics_enabled":   f.config.MetricsEnabled,
+		"tracing_enabled":   f.config.TracingEnabled,
 		"profiling_enabled": f.config.ProfilingEnabled,
-		"active_spans": len(f.tracing.spans),
+		"active_spans":      len(f.tracing.spans),
 	}
 }
 
@@ -393,12 +396,58 @@ func (f *Framework) Close() error {
 
 	f.enabled = false
 
+	// Shutdown OTEL tracer if initialized
+	if f.tracing != nil && f.tracing.otelProvider != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := f.tracing.otelProvider.Shutdown(ctx); err != nil {
+			f.logger.Error("failed to shutdown OTEL tracer", zap.Error(err))
+		}
+	}
+
 	// Flush logger
 	_ = f.logger.Sync()
 
 	f.logger.Info("observability framework shut down")
 
 	return nil
+}
+
+// EnableOTEL enables OpenTelemetry distributed tracing (Block 14)
+// This should be called after NewFramework to enable production tracing
+func (f *Framework) EnableOTEL(ctx context.Context, config *TracerConfig) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if config == nil {
+		config = DefaultTracerConfig(f.config.ServiceName)
+	}
+	config.Logger = f.logger
+
+	provider, err := InitTracer(ctx, config)
+	if err != nil {
+		return fmt.Errorf("failed to initialize OTEL tracer: %w", err)
+	}
+
+	f.tracing.otelProvider = provider
+	f.logger.Info("OTEL tracing enabled",
+		zap.String("endpoint", config.OTELEndpoint),
+		zap.Float64("sampling_rate", config.SamplingRate),
+	)
+
+	return nil
+}
+
+// OTELTracer returns the underlying OTEL TracerProvider for direct usage
+// Returns nil if OTEL is not enabled
+func (f *Framework) OTELTracer() *TracerProvider {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if f.tracing == nil {
+		return nil
+	}
+	return f.tracing.otelProvider
 }
 
 // Helper functions

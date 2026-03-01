@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -48,6 +49,18 @@ func NewRemoteWriteClient(config *RemoteWriteConfig, logger *zap.Logger) *Remote
 	if config.Timeout == 0 {
 		config.Timeout = 10 * time.Second
 	}
+
+	// Log configuration at startup (mask password for security)
+	maskedPassword := ""
+	if config.Password != "" {
+		maskedPassword = config.Password[:min(4, len(config.Password))] + "****"
+	}
+	logger.Info("remote write client configured",
+		zap.String("endpoint", config.Endpoint),
+		zap.String("username", config.Username),
+		zap.String("password_preview", maskedPassword),
+		zap.Duration("push_interval", config.PushInterval),
+	)
 
 	return &RemoteWriteClient{
 		config: config,
@@ -138,7 +151,14 @@ func (c *RemoteWriteClient) Push(ctx context.Context) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("remote write failed with status %d", resp.StatusCode)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		c.logger.Error("remote write failed",
+			zap.Int("status_code", resp.StatusCode),
+			zap.String("response_body", string(body)),
+			zap.String("endpoint", c.config.Endpoint),
+			zap.String("username", c.config.Username),
+		)
+		return fmt.Errorf("remote write failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	c.logger.Debug("pushed metrics to remote write",

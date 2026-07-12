@@ -19,7 +19,11 @@ concurrency:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    # Go compile-heavy jobs (golangci-lint / go test -race / go build) moved to
+    # the Hermes Hetzner fleet (eu-1), provisioned with base-devel + Go via
+    # setup-go. The `security` job stays on ubuntu-latest — securego/gosec is a
+    # Docker-container action needing a Docker daemon the fleet does not run.
+    runs-on: [self-hosted, linux, arch, x64, ci-shared]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,7 +42,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arch, x64, ci-shared]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,7 +97,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, arch, x64, ci-shared]
     needs: [lint, test]
     if: always() && !cancelled() && !contains(needs.*.result, 'failure')
     steps:

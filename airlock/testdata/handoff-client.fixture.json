@@ -1,0 +1,15 @@
+{
+  "description": "Cross-language contract token. HS256 local-session JWT signed by jose (the canonical SDK signer). Embedded in Go and Rust tests; drift means cross-lang verifiers do not match the canonical signer.",
+  "secret": "sparki-test-secret-32-chars-long!!",
+  "issuer": "https://sparki.tools",
+  "audience": "cross-apex-local-session",
+  "subject": "fixture-user-123",
+  "exp": 4070908800,
+  "iat": 1714694400,
+  "payload": {
+    "email": "fixture@sparki.tools",
+    "name": "Fixture User",
+    "role": "member"
+  },
+  "token": "eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImZpeHR1cmVAc3BhcmtpLnRvb2xzIiwibmFtZSI6IkZpeHR1cmUgVXNlciIsInJvbGUiOiJtZW1iZXIiLCJpc3MiOiJodHRwczovL3NwYXJraS50b29scyIsImF1ZCI6ImNyb3NzLWFwZXgtbG9jYWwtc2Vzc2lvbiIsInN1YiI6ImZpeHR1cmUtdXNlci0xMjMiLCJpYXQiOjE3MTQ2OTQ0MDAsImV4cCI6NDA3MDkwODgwMH0.9hel4uo2tPhOZ1MObJdJHdruCxokw4iDS5iBb56Glhk"
+}

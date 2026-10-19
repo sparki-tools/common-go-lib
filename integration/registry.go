@@ -28,6 +28,9 @@ const (
 	ServiceTypeCache ServiceType = "cache"
 )
 
+// defaultProtocol is used when an endpoint leaves Protocol empty.
+const defaultProtocol = "http"
+
 // ServiceEndpoint defines how to reach a service
 type ServiceEndpoint struct {
 	Type     ServiceType
@@ -39,11 +42,13 @@ type ServiceEndpoint struct {
 
 // URL returns the full endpoint URL
 func (se *ServiceEndpoint) URL() string {
-	if se.Protocol == "" {
-		se.Protocol = "http"
+	// Default without writing: endpoints are shared across goroutines.
+	protocol := se.Protocol
+	if protocol == "" {
+		protocol = defaultProtocol
 	}
 
-	url := fmt.Sprintf("%s://%s:%d", se.Protocol, se.Host, se.Port)
+	url := fmt.Sprintf("%s://%s:%d", protocol, se.Host, se.Port)
 	if se.BasePath != "" {
 		url += se.BasePath
 	}

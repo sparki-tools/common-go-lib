@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -20,19 +22,8 @@ func TestNew(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "valid connection",
-			config: &Config{
-				Host:            "localhost",
-				Port:            5432,
-				User:            "sparki_test",
-				Password:        "sparki_test",
-				Database:        "postgres",
-				SSLMode:         "disable",
-				MaxOpenConns:    5,
-				MaxIdleConns:    2,
-				ConnMaxLifetime: 5 * time.Minute,
-				ConnMaxIdleTime: 1 * time.Minute,
-			},
+			name:    "valid connection",
+			config:  testConfig(t),
 			wantErr: false,
 		},
 		{
@@ -77,22 +68,11 @@ func TestDB_Health(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
 
-	cfg := &Config{
-		Host:            "localhost",
-		Port:            5432,
-		User:            "sparki_test",
-		Password:        "sparki_test",
-		Database:        "postgres",
-		SSLMode:         "disable",
-		MaxOpenConns:    5,
-		MaxIdleConns:    2,
-		ConnMaxLifetime: 5 * time.Minute,
-		ConnMaxIdleTime: 1 * time.Minute,
-	}
+	cfg := testConfig(t)
 
 	db, err := New(ctx, cfg, logger)
 	if err != nil {
-		t.Skipf("Cannot connect to test database: %v", err)
+		t.Fatalf("Cannot connect to test database: %v", err)
 	}
 	defer db.Close()
 
@@ -121,10 +101,10 @@ func TestDB_Stats(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
 
-	cfg := DefaultConfig()
+	cfg := testConfig(t)
 	db, err := New(ctx, cfg, logger)
 	if err != nil {
-		t.Skipf("Cannot connect to test database: %v", err)
+		t.Fatalf("Cannot connect to test database: %v", err)
 	}
 	defer db.Close()
 
@@ -142,10 +122,10 @@ func TestDB_WithTransaction(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	ctx := context.Background()
 
-	cfg := DefaultConfig()
+	cfg := testConfig(t)
 	db, err := New(ctx, cfg, logger)
 	if err != nil {
-		t.Skipf("Cannot connect to test database: %v", err)
+		t.Fatalf("Cannot connect to test database: %v", err)
 	}
 	defer db.Close()
 
@@ -199,4 +179,42 @@ type testError struct {
 
 func (e *testError) Error() string {
 	return e.msg
+}
+
+// testConfig points at the test Postgres. TEST_DB_* override the defaults, as
+// in api-engine; the Mac lab runs Postgres on 55432.
+func testConfig(t *testing.T) *Config {
+	t.Helper()
+
+	port := 5432
+
+	if v := os.Getenv("TEST_DB_PORT"); v != "" {
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			t.Fatalf("TEST_DB_PORT=%q: %v", v, err)
+		}
+
+		port = p
+	}
+
+	return &Config{
+		Host:            envOr("TEST_DB_HOST", "localhost"),
+		Port:            port,
+		User:            envOr("TEST_DB_USER", "sparki_test"),
+		Password:        envOr("TEST_DB_PASSWORD", "sparki_test"),
+		Database:        "postgres",
+		SSLMode:         "disable",
+		MaxOpenConns:    5,
+		MaxIdleConns:    2,
+		ConnMaxLifetime: 5 * time.Minute,
+		ConnMaxIdleTime: 1 * time.Minute,
+	}
+}
+
+func envOr(key, def string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+
+	return def
 }

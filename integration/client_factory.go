@@ -3,6 +3,7 @@ package integration
 import (
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -46,7 +47,9 @@ type ClientFactory struct {
 	registry *ServiceRegistry
 	config   *ClientConfig
 	logger   *zap.Logger
-	clients  map[ServiceType]*http.Client
+
+	mu      sync.Mutex // guards clients; Gateway calls arrive concurrently
+	clients map[ServiceType]*http.Client
 }
 
 // NewClientFactory creates a new client factory
@@ -74,6 +77,9 @@ func NewClientFactory(registry *ServiceRegistry, config *ClientConfig) (*ClientF
 
 // GetClient returns an HTTP client for a service
 func (cf *ClientFactory) GetClient(serviceType ServiceType) (*http.Client, error) {
+	cf.mu.Lock()
+	defer cf.mu.Unlock()
+
 	// Return cached client if available
 	if client, exists := cf.clients[serviceType]; exists {
 		return client, nil
@@ -179,6 +185,9 @@ func (cf *ClientFactory) Do(serviceType ServiceType, req *http.Request) (*http.R
 
 // Close closes all cached clients
 func (cf *ClientFactory) Close() error {
+	cf.mu.Lock()
+	defer cf.mu.Unlock()
+
 	for serviceType, client := range cf.clients {
 		if client != nil && client.Transport != nil {
 			if transport, ok := client.Transport.(*http.Transport); ok {

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -18,7 +19,7 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:    "valid connection",
-			config:  DefaultConfig(),
+			config:  testConfig(),
 			wantErr: false,
 		},
 		{
@@ -61,11 +62,11 @@ func TestNew(t *testing.T) {
 
 func TestCache_Health(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	cfg := DefaultConfig()
+	cfg := testConfig()
 
 	cache, err := New(cfg, logger)
 	if err != nil {
-		t.Skipf("Cannot connect to Redis: %v", err)
+		t.Fatalf("Cannot connect to Redis: %v", err)
 	}
 	defer cache.Close()
 
@@ -93,11 +94,11 @@ func TestCache_Health(t *testing.T) {
 
 func TestCache_Stats(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	cfg := DefaultConfig()
+	cfg := testConfig()
 
 	cache, err := New(cfg, logger)
 	if err != nil {
-		t.Skipf("Cannot connect to Redis: %v", err)
+		t.Fatalf("Cannot connect to Redis: %v", err)
 	}
 	defer cache.Close()
 
@@ -126,4 +127,16 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.DialTimeout <= 0 {
 		t.Errorf("DefaultConfig().DialTimeout = %v, want > 0", cfg.DialTimeout)
 	}
+}
+
+// testConfig points at the test Redis. TEST_REDIS_ADDR overrides the default,
+// as in api-engine; the Mac lab runs Redis on 56379.
+func testConfig() *Config {
+	cfg := DefaultConfig()
+
+	if v := os.Getenv("TEST_REDIS_ADDR"); v != "" {
+		cfg.Addr = v
+	}
+
+	return cfg
 }

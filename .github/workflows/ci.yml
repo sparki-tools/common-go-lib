@@ -1,13 +1,19 @@
-# CI/CD Workflow for Common Go Library
-# Runs tests, linting, and security scans
+# Security scan for Common Go Library (dispatch-only)
+#
+# CI for this repo is the Mac lab: sparki-tools/.github scripts/lab-ci.sh runs
+# vet, golangci-lint v2, build and `go test -race` on an exact sha and posts the
+# commit status `mac-lab/ci` (platform-docs decisions/2026-10-17-ci-on-mac-lab.md).
+# The lint/test/build jobs that used to run here on the Hermes eu-1 fleet
+# (`ci-shared`) were removed when eu-1 retired (hermes Task 14); git history
+# keeps them as the record of what Actions checked.
+#
+# What is left needs GitHub itself: gosec SARIF upload to code scanning. It runs
+# on GitHub-hosted ubuntu-latest, only when dispatched by hand:
+#   gh workflow run ci.yml -R sparki-tools/common-go-lib
 
-name: CI
+name: Security
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
 
 permissions: read-all
@@ -17,66 +23,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    timeout-minutes: 30
-    name: Lint
-    # Go compile-heavy jobs (golangci-lint / go test -race / go build) moved to
-    # the Hermes Hetzner fleet (eu-1), provisioned with base-devel + Go via
-    # setup-go. The `security` job stays on ubuntu-latest — securego/gosec is a
-    # Docker-container action needing a Docker daemon the fleet does not run.
-    runs-on: [self-hosted, linux, arch, x64, ci-shared]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: go.sum
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.12.2
-          args: --timeout=5m
-
-  test:
-    timeout-minutes: 30
-    name: Test
-    runs-on: [self-hosted, linux, arch, x64, ci-shared]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: go.sum
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
-
-      - name: Check coverage
-        run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Coverage: ${COVERAGE}%"
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage.out
-          fail_ci_if_error: false
-
   security:
     timeout-minutes: 30
     name: Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -97,30 +50,3 @@ jobs:
         if: always()
         with:
           sarif_file: gosec.sarif
-
-  build:
-    timeout-minutes: 30
-    name: Build
-    runs-on: [self-hosted, linux, arch, x64, ci-shared]
-    needs: [lint, test]
-    if: always() && !cancelled() && !contains(needs.*.result, 'failure')
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
-          cache-dependency-path: go.sum
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Verify go.mod is tidy
-        run: |
-          go mod tidy
-          git diff --exit-code go.mod go.sum || {
-            echo "::error::go.mod or go.sum is not tidy. Run 'go mod tidy' and commit the changes."
-            exit 1
-          }

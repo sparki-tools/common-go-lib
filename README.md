@@ -16,6 +16,7 @@ This library provides common utilities used across Sparki Go services:
 - **config** - Configuration management
 - **middleware** - HTTP middleware (auth, tracing, metrics)
 - **types** - Shared type definitions
+- **githubapp** - GitHub App JWT signing and cached installation tokens (stdlib only)
 
 ## Installation
 
@@ -67,6 +68,25 @@ cache, err := cache.New(cfg, logger)
 
 // Health check
 health, err := cache.Health(ctx)
+```
+
+### GitHub App
+
+```go
+import "github.com/sparki-tools/common-go-lib/githubapp"
+
+app, err := githubapp.New(githubapp.Config{AppID: appID, PrivateKeyPEM: keyPEM})
+
+// Resolve a repo to its installation and numeric repo ID.
+instID, repoID, err := app.Installation(ctx, "owner", "repo")
+
+// Repo-scoped, read-only token; cached until 5 minutes before expiry.
+tok, err := app.InstallationToken(ctx, instID, githubapp.TokenOptions{
+    RepositoryIDs: []int64{repoID},
+    Permissions:   map[string]string{"contents": "read"},
+})
+
+// Branch on errors.Is(err, githubapp.ErrNotInstalled | ErrUnauthorized | ErrRateLimited).
 ```
 
 ### Database

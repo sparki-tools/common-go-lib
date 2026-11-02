@@ -183,8 +183,15 @@ func (e *testError) Error() string {
 
 // testConfig points at the test Postgres. TEST_DB_* override the defaults, as
 // in api-engine; the Mac lab runs Postgres on 55432.
+// testConfig returns the test database config, or skips the test when
+// TEST_DB_HOST is unset: these tests need a live Postgres, which the Mac lab
+// provides (lab-ci.sh exports TEST_DB_*) and a bare `go test` does not.
 func testConfig(t *testing.T) *Config {
 	t.Helper()
+
+	if os.Getenv("TEST_DB_HOST") == "" {
+		t.Skip("TEST_DB_HOST unset: no test database")
+	}
 
 	port := 5432
 

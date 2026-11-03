@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 	}{
 		{
 			name:    "valid connection",
-			config:  testConfig(),
+			config:  testConfig(t),
 			wantErr: false,
 		},
 		{
@@ -62,7 +62,7 @@ func TestNew(t *testing.T) {
 
 func TestCache_Health(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	cfg := testConfig()
+	cfg := testConfig(t)
 
 	cache, err := New(cfg, logger)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestCache_Health(t *testing.T) {
 
 func TestCache_Stats(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
-	cfg := testConfig()
+	cfg := testConfig(t)
 
 	cache, err := New(cfg, logger)
 	if err != nil {
@@ -129,14 +129,19 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-// testConfig points at the test Redis. TEST_REDIS_ADDR overrides the default,
-// as in api-engine; the Mac lab runs Redis on 56379.
-func testConfig() *Config {
-	cfg := DefaultConfig()
+// testConfig points at the test Redis named by TEST_REDIS_ADDR (the Mac lab
+// runs it on 56379), or skips the test when that is unset: these tests need a
+// live Redis, which lab-ci.sh provides and a bare `go test` does not.
+func testConfig(t *testing.T) *Config {
+	t.Helper()
 
-	if v := os.Getenv("TEST_REDIS_ADDR"); v != "" {
-		cfg.Addr = v
+	addr := os.Getenv("TEST_REDIS_ADDR")
+	if addr == "" {
+		t.Skip("TEST_REDIS_ADDR unset: no test Redis")
 	}
+
+	cfg := DefaultConfig()
+	cfg.Addr = addr
 
 	return cfg
 }

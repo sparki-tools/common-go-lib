@@ -227,6 +227,12 @@ func (q *Queue) EnqueueMetrics(ctx context.Context, metrics *MetricsPayload) err
 		Payload:  metrics,
 	}
 
+	// Checked first: when the queue has room, select picks at random between
+	// the send and a cancelled ctx, so a cancelled call could still enqueue.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	select {
 	case q.queue <- item:
 		return nil
@@ -252,6 +258,12 @@ func (q *Queue) EnqueueTrace(ctx context.Context, trace *TracePayload) error {
 		Payload:  trace,
 	}
 
+	// Checked first: when the queue has room, select picks at random between
+	// the send and a cancelled ctx, so a cancelled call could still enqueue.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	select {
 	case q.queue <- item:
 		return nil
@@ -275,6 +287,12 @@ func (q *Queue) EnqueueLog(ctx context.Context, log *LogPayload) error {
 	item := &QueueItem{
 		ItemType: "log",
 		Payload:  log,
+	}
+
+	// Checked first: when the queue has room, select picks at random between
+	// the send and a cancelled ctx, so a cancelled call could still enqueue.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	select {

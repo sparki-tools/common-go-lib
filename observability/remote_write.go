@@ -50,15 +50,11 @@ func NewRemoteWriteClient(config *RemoteWriteConfig, logger *zap.Logger) *Remote
 		config.Timeout = 10 * time.Second
 	}
 
-	// Log configuration at startup (mask password for security)
-	maskedPassword := ""
-	if config.Password != "" {
-		maskedPassword = config.Password[:min(4, len(config.Password))] + "****"
-	}
+	// Log configuration at startup: only whether a password is set, nothing derived from it.
 	logger.Info("remote write client configured",
 		zap.String("endpoint", config.Endpoint),
 		zap.String("username", config.Username),
-		zap.String("password_preview", maskedPassword),
+		zap.Bool("password_set", config.Password != ""),
 		zap.Duration("push_interval", config.PushInterval),
 	)
 

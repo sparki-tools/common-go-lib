@@ -1,11 +1,8 @@
 # Security scan for Common Go Library (dispatch-only)
 #
-# CI for this repo is the Mac lab: sparki-tools/.github scripts/lab-ci.sh runs
-# vet, golangci-lint v2, build and `go test -race` on an exact sha and posts the
-# commit status `mac-lab/ci` (platform-docs decisions/2026-10-17-ci-on-mac-lab.md).
-# The lint/test/build jobs that used to run here on the Hermes eu-1 fleet
-# (`ci-shared`) were removed when eu-1 retired (hermes Task 14); git history
-# keeps them as the record of what Actions checked.
+# CI for this repo runs outside Actions: sparki-tools/.github scripts/lab-ci.sh
+# runs vet, golangci-lint v2, build and `go test -race` on an exact sha and posts
+# the commit status `mac-lab/ci`.
 #
 # What is left needs GitHub itself: gosec SARIF upload to code scanning. It runs
 # on GitHub-hosted ubuntu-latest, only when dispatched by hand:
@@ -37,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.26"
           cache-dependency-path: go.sum
 
       - name: Run Gosec Security Scanner
